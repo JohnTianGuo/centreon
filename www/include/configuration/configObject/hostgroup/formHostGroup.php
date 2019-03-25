@@ -1,7 +1,7 @@
 <?php
 /*
- * Copyright 2005-2015 Centreon
- * Centreon is developped by : Julien Mathis and Romain Le Merlus under
+ * Copyright 2005-2019 Centreon
+ * Centreon is developed by : Julien Mathis and Romain Le Merlus under
  * GPL Licence 2.0.
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -38,7 +38,7 @@ if (!isset($centreon)) {
 }
 
 if (!$centreon->user->admin) {
-    if ($hg_id && false === strpos($hgString, "'" . $hg_id . "'")) {
+    if ($hgId && false === strpos($hgString, "'" . $hgId . "'")) {
         $msg = new CentreonMsg();
         $msg->setImage("./img/icons/warning.png");
         $msg->setTextStyle("bold");
@@ -49,28 +49,22 @@ if (!$centreon->user->admin) {
 
 $initialValues = array();
 
-/*
- * Database retrieve information for HostGroup
-	 */
+// Database retrieve information for HostGroup
 $hg = array();
-if (($o == "c" || $o == "w") && $hg_id) {
-    $DBRESULT = $pearDB->query("SELECT * FROM hostgroup WHERE hg_id = '" . $hg_id . "' LIMIT 1");
-    /*
-     * Set base value
-     */
+if (($o == "c" || $o == "w") && $hgId) {
+    $DBRESULT = $pearDB->query("SELECT * FROM hostgroup WHERE hg_id = '" . $hgId . "' LIMIT 1");
+    // Set base value
     $hg = array_map("myDecode", $DBRESULT->fetchRow());
 }
 
-/*
- * IMG comes from DB -> Store in $extImg Array
- */
+// IMG comes from DB -> Store in $extImg Array
 $extImg = array();
 $extImg = return_image_list(1);
 $extImgStatusmap = array();
 $extImgStatusmap = return_image_list(2);
 
 /*
- * Define Templatse
+ * Define Templates
  */
 $attrsText = array("size" => "30");
 $attrsTextLong = array("size" => "50");
@@ -93,9 +87,7 @@ $attrHostgroups = array(
     'linkedObject' => 'centreonHostgroups'
 );
 
-/*
- * Create formulary
- */
+// Create form
 $form = new HTML_QuickFormCustom('Form', 'post', "?p=" . $p);
 if ($o == "a") {
     $form->addElement('header', 'title', _("Add a Host Group"));
@@ -105,18 +97,14 @@ if ($o == "a") {
     $form->addElement('header', 'title', _("View a Host Group"));
 }
 
-/*
- * Contact basic information
- */
+// Contact basic information
 $form->addElement('header', 'information', _("General Information"));
 $form->addElement('text', 'hg_name', _("Host Group Name"), $attrsText);
 $form->addElement('text', 'hg_alias', _("Alias"), $attrsText);
 
-/*
- * Hosts Selection
- */
+// Hosts Selection
 $hostRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_host'
-    . '&action=defaultValues&target=hostgroups&field=hg_hosts&id=' . $hg_id;
+    . '&action=defaultValues&target=hostgroups&field=hg_hosts&id=' . $hgId;
 $attrHost1 = array_merge(
     $attrHosts,
     array('defaultDatasetRoute' => $hostRoute)
@@ -124,16 +112,14 @@ $attrHost1 = array_merge(
 $form->addElement('select2', 'hg_hosts', _("Linked Hosts"), array(), $attrHost1);
 
 $hostGrRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_hostgroup'
-    . '&action=defaultValues&target=hostgroups&field=hg_hg&id=' . $hg_id;
+    . '&action=defaultValues&target=hostgroups&field=hg_hg&id=' . $hgId;
 $attrHostgroup1 = array_merge(
     $attrHostgroups,
     array('defaultDatasetRoute' => $hostGrRoute)
 );
 $form->addElement('select2', 'hg_hg', _("Linked Host Groups"), array(), $attrHostgroup1);
 
-/*
- * Extended information
- */
+// Extended information
 $form->addElement('header', 'extended', _("Extended Information"));
 $form->addElement('text', 'hg_notes', _("Notes"), $attrsText);
 $form->addElement('text', 'hg_notes_url', _("Notes URL"), $attrsTextLong);
@@ -153,9 +139,7 @@ $form->addElement(
     array("onChange" => "showLogo('hg_map_icon_image',this.form.elements['hg_map_icon_image'].value)")
 );
 
-/*
- * Further informations
- */
+// Further information
 $form->addElement('text', 'hg_rrd_retention', _('RRD retention'), array('size' => 5));
 $form->addElement('text', 'geo_coords', _("Geo coordinates"), $attrsText);
 $form->addElement('header', 'furtherInfos', _("Additional Information"));
@@ -173,8 +157,10 @@ $redirect->setValue($o);
 $init = $form->addElement('hidden', 'initialValues');
 $init->setValue(serialize($initialValues));
 
-/*
+/**
  * Form Rules
+ *
+ * @return string
  */
 function myReplace()
 {
@@ -198,15 +184,13 @@ $tpl = new Smarty();
 $tpl = initSmartyTpl($path, $tpl);
 
 if ($o == "w") {
-    /*
-     * Just watch a HostGroup information
-     */
+    // Just watch HostGroup's information
     if ($centreon->user->access->page($p) != 2) {
         $form->addElement(
             "button",
             "change",
             _("Modify"),
-            array("onClick" => "javascript:window.location.href='?p=" . $p . "&o=c&hg_id=" . $hg_id . "'")
+            array("onClick" => "javascript:window.location.href='?p=" . $p . "&o=c&hg_id=" . $hgId . "'")
         );
     }
     $form->setDefaults($hg);
@@ -222,7 +206,7 @@ if ($o == "w") {
     $host = $acl->getHostAclConf(null, 'broker');
     $accessHost = array_keys($host);
     $rq = "SELECT DISTINCT h.host_id FROM hostgroup_relation hgr, host h  " .
-        " WHERE hostgroup_hg_id = '" . $hg_id . "' AND h.host_id = hgr.host_host_id AND h.host_register = '1' ";
+        " WHERE hostgroup_hg_id = '" . $hgId . "' AND h.host_id = hgr.host_host_id AND h.host_register = '1' ";
     $db = $pearDB->query($rq);
     while ($row = $db->fetch()) {
         $hostArray[] = $row['host_id'];
@@ -234,9 +218,7 @@ if ($o == "w") {
     }
 
 } elseif ($o == "a") {
-    /*
-     * Add a HostGroup information
-     */
+    // Add a HostGroup information
     $subA = $form->addElement('submit', 'submitA', _("Save"), array("class" => "btc bt_success"));
     $res = $form->addElement('reset', 'reset', _("Reset"), array("class" => "btc bt_default"));
 }
@@ -250,9 +232,9 @@ $tpl->assign(
     . ' WIDTH, -300, SHADOW, true, TEXTALIGN, "justify"'
 );
 
-# prepare help texts
+// prepare help texts
 $helptext = "";
-include_once("help.php");
+include_once "help.php";
 foreach ($help as $key => $text) {
     $helptext .= '<span style="display:none" id="help:' . $key . '">' . $text . '</span>' . "\n";
 }
@@ -272,11 +254,9 @@ if ($form->validate()) {
 }
 
 if ($valid) {
-    require_once($path . "listHostGroup.php");
+    require_once $path . "listHostGroup.php";
 } else {
-    /*
-     * Apply a template definition
-     */
+    // Apply a template definition
     $renderer = new HTML_QuickForm_Renderer_ArraySmarty($tpl, true);
     $renderer->setRequiredTemplate('{$label}&nbsp;<font color="red" size="1">*</font>');
     $renderer->setErrorTemplate('<font color="red">{$error}</font><br />{$html}');

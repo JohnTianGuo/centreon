@@ -1,7 +1,7 @@
 <?php
 /*
- * Copyright 2005-2015 Centreon
- * Centreon is developped by : Julien Mathis and Romain Le Merlus under
+ * Copyright 2005-2019 Centreon
+ * Centreon is developed by : Julien Mathis and Romain Le Merlus under
  * GPL Licence 2.0.
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -37,36 +37,35 @@ if (!isset($centreon)) {
     exit();
 }
 
-isset($_GET["hg_id"]) ? $hG = $_GET["hg_id"] : $hG = null;
-isset($_POST["hg_id"]) ? $hP = $_POST["hg_id"] : $hP = null;
-$hG ? $hg_id = (int)$hG : $hg_id = (int)$hP;
+$hgId = filter_var(
+    $_GET["hg_id"] ?? $_POST["hg_id"] ?? null,
+    FILTER_VALIDATE_INT
+);
 
-isset($_GET["select"]) ? $cG = $_GET["select"] : $cG = null;
-isset($_POST["select"]) ? $cP = $_POST["select"] : $cP = null;
-$cG ? $select = $cG : $select = $cP;
+$select = filter_var(
+    $_GET["select"] ?? $_POST["select"] ?? null,
+    FILTER_VALIDATE_INT
+);
 
-isset($_GET["dupNbr"]) ? $cG = $_GET["dupNbr"] : $cG = null;
-isset($_POST["dupNbr"]) ? $cP = $_POST["dupNbr"] : $cP = null;
-$cG ? $dupNbr = $cG : $dupNbr = $cP;
+$dupNbr = filter_var(
+    $_GET["dupNbr"] ?? $_POST["dupNbr"] ?? null,
+    FILTER_VALIDATE_INT
+);
 
-/*
- * Path to the configuration dir
- */
+// Path to the configuration dir
 $path = "./include/configuration/configObject/hostgroup/";
 
-/*
- * PHP functions
- */
+// PHP functions
 require_once $path . "DB-Func.php";
 require_once "./include/common/common-Func.php";
 
-/* Set the real page */
+// Set the real page
 if ($ret['topology_page'] != "" && $p != $ret['topology_page']) {
     $p = $ret['topology_page'];
 }
 
 $acl = $centreon->user->access;
-$dbmon = new CentreonDB('centstorage');
+$dbMon = new CentreonDB('centstorage');
 $aclDbName = $acl->getNameDBAcl();
 $hgs = $acl->getHostGroupAclConf(null, 'broker');
 
@@ -76,47 +75,47 @@ function mywrap($el)
 }
 
 $hgString = implode(',', array_map('mywrap', array_keys($hgs)));
-$hoststring = $acl->getHostsString('ID', $dbmon);
+$hostString = $acl->getHostsString('ID', $dbMon);
 
 switch ($o) {
     case "a":
-        require_once($path . "formHostGroup.php");
+        require_once $path . "formHostGroup.php";
         break; #Add a Hostgroup
     case "w":
-        require_once($path . "formHostGroup.php");
+        require_once $path . "formHostGroup.php";
         break; #Watch a Hostgroup
     case "c":
-        require_once($path . "formHostGroup.php");
+        require_once $path . "formHostGroup.php";
         break; #Modify a Hostgroup
     case "s":
-        enableHostGroupInDB($hg_id);
-        require_once($path . "listHostGroup.php");
+        enableHostGroupInDB($hgID);
+        require_once $path . "listHostGroup.php";
         break; #Activate a Hostgroup
     case "ms":
         enableHostGroupInDB(null, isset($select) ? $select : array());
-        require_once($path . "listHostGroup.php");
+        require_once $path . "listHostGroup.php";
         break;
     case "u":
-        disableHostGroupInDB($hg_id);
-        require_once($path . "listHostGroup.php");
+        disableHostGroupInDB($hgID);
+        require_once $path . "listHostGroup.php";
         break; #Desactivate a Hostgroup
     case "mu":
         disableHostGroupInDB(null, isset($select) ? $select : array());
-        require_once($path . "listHostGroup.php");
+        require_once $path . "listHostGroup.php";
         break;
     case "m":
         multipleHostGroupInDB(isset($select) ? $select : array(), $dupNbr);
         $acl = $centreon->user->access;
         $hgs = $acl->getHostGroupAclConf(null, 'broker');
         $hgString = implode(',', array_map('mywrap', array_keys($hgs)));
-        $hoststring = $acl->getHostsString('ID', $dbmon);
-        require_once($path . "listHostGroup.php");
-        break; #Duplicate n Host grou
+        $hostString = $acl->getHostsString('ID', $dbMon);
+        require_once $path . "listHostGroup.php";
+        break; #Duplicate multiple Hostgroup
     case "d":
         deleteHostGroupInDB(isset($select) ? $select : array());
-        require_once($path . "listHostGroup.php");
-        break; #Delete n Host group
+        require_once $path . "listHostGroup.php";
+        break; #Delete multiple Hostgroup
     default:
-        require_once($path . "listHostGroup.php");
+        require_once $path . "listHostGroup.php";
         break;
 }

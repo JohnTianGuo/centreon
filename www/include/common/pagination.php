@@ -1,7 +1,7 @@
 <?php
 /*
- * Copyright 2005-2015 Centreon
- * Centreon is developped by : Julien Mathis and Romain Le Merlus under
+ * Copyright 2005-2019 Centreon
+ * Centreon is developed by : Julien Mathis and Romain Le Merlus under
  * GPL Licence 2.0.
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -75,10 +75,10 @@ if (isset($_GET["search_type_host"])) {
     $search_type_host = null;
 }
 
-if (!isset($_GET["search_type_host"]) &&
-    !isset($centreon->search_type_host) &&
-    !isset($_GET["search_type_service"]) &&
-    !isset($centreon->search_type_service)
+if (!isset($_GET["search_type_host"])
+    && !isset($centreon->search_type_host)
+    && !isset($_GET["search_type_service"])
+    && !isset($centreon->search_type_service)
 ) {
     $search_type_host = 1;
     $centreon->search_type_host = 1;
@@ -140,14 +140,14 @@ if (isset($_REQUEST['hostgroups'])) {
 /* Start Fix for performance management under administration - parameters */
 if (isset($_REQUEST['searchS'])) {
     $url_var .= '&searchS=' . $_REQUEST['searchS'];
-    if (isset($_POST['num'])){
+    if (isset($_POST['num'])) {
         $num = 0;
     }
 }
 
 if (isset($_REQUEST['searchH'])) {
     $url_var .= '&searchH=' . $_REQUEST['searchH'];
-    if (isset($_POST['num'])){
+    if (isset($_POST['num'])) {
         $num = 0;
     }
 }
@@ -169,16 +169,16 @@ if ($num >= $page_max && $rows) {
 }
 
 $pageArr = array();
-$istart = 0;
-for ($i = 5, $istart = $num; $istart && $i > 0; $i--) {
-    $istart--;
+$iStart = 0;
+for ($i = 5, $iStart = $num; $iStart && $i > 0; $i--) {
+    $iStart--;
 }
-for ($i2 = 0, $iend = $num; ($iend < ($rows / $limit - 1)) && ($i2 < (5 + $i)); $i2++) {
-    $iend++;
+for ($i2 = 0, $iEnd = $num; ($iEnd < ($rows / $limit - 1)) && ($i2 < (5 + $i)); $i2++) {
+    $iEnd++;
 }
 
 if ($rows != 0) {
-    for ($i = $istart; $i <= $iend; $i++) {
+    for ($i = $iStart; $i <= $iEnd; $i++) {
 
         $urlPage = "main.php?p=" . $p . "&num=$i&limit=" . $limit . "&poller=" . $poller .
             "&template=$template&search=" . $search . "&type=" . $type . "&o=" . $o . $url_var;
@@ -238,9 +238,7 @@ if ($rows != 0) {
         );
     }
 
-    /*
- * Select field to change the number of row on the page
- */
+    // Select field to change the number of row on the page
     for ($i = 10; $i <= 100; $i = $i + 10) {
         $select[$i] = $i;
     }
@@ -265,7 +263,7 @@ if ($rows != 0) {
             _l[0].value = _this;
             _l[1].value = _this;
         }
-    </SCRIPT>
+    </script>
 <?php
 $form = new HTML_QuickFormCustom(
     'select_form',

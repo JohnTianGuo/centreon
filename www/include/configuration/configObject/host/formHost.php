@@ -1,7 +1,7 @@
 <?php
 /*
- * Copyright 2005-2015 Centreon
- * Centreon is developped by : Julien Mathis and Romain Le Merlus under
+ * Copyright 2005-2019 Centreon
+ * Centreon is developed by : Julien Mathis and Romain Le Merlus under
  * GPL Licence 2.0.
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -38,7 +38,7 @@ if (!isset($centreon)) {
 }
 
 if (!$centreon->user->admin) {
-    if ($host_id && false === strpos($aclHostString, "'" . $host_id . "'")) {
+    if ($hostId && false === strpos($aclHostString, "'" . $hostId . "'")) {
         $msg = new CentreonMsg();
         $msg->setImage("./img/icons/warning.png");
         $msg->setTextStyle("bold");
@@ -51,10 +51,10 @@ $hostObj = new CentreonHost($pearDB);
 
 $initialValues = array();
 
-/* host categories */
+// host categories
 $hcString = $acl->getHostCategoriesString();
 
-/* notification contacts */
+// notification contacts
 $notifCs = $acl->getContactAclConf(array(
     'fields' => array('contact_id', 'contact_name'),
     'get_row' => 'contact_name',
@@ -63,7 +63,7 @@ $notifCs = $acl->getContactAclConf(array(
     'order' => array('contact_name')
 ));
 
-/* notification contact groups */
+// notification contact groups
 $notifCgs = $acl->getContactGroupAclConf(array(
     'fields' => array('cg_id', 'cg_name'),
     'get_row' => 'cg_name',
@@ -127,51 +127,41 @@ function allInSameInstance($hosts, $instanceId)
  */
 $host = array();
 
-/**
- * define macros as empty array to avoid null counting
- */
+// define macros as empty array to avoid null counting
 $aMacros = array();
 
-if (($o == "c" || $o == "w") && $host_id) {
+if (($o == "c" || $o == "w") && $hostId) {
     $DBRESULT = $pearDB->query("SELECT * 
                                 FROM host, extended_host_information ehi 
-                                WHERE host_id = '" . $host_id . "' 
+                                WHERE host_id = '" . $hostId . "' 
                                 AND ehi.host_host_id = host.host_id LIMIT 1");
 
-    /*
-     * Set base value
-     */
-    $host_list = $DBRESULT->fetchRow();
+    // Set base value
+    $host_list = $DBRESULT->fetch();
     $host = array_map("myDecode", $host_list);
 
     $cmdId = $host['command_command_id'];
 
-    /*
-     * Set Host Notification Options
-     */
+    // Set Host Notification Options
     $tmp = explode(',', $host["host_notification_options"]);
     foreach ($tmp as $key => $value) {
         $host["host_notifOpts"][trim($value)] = 1;
     }
 
-    /*
-     * Set Stalking Options
-     */
+    // Set Stalking Options
     $tmp = explode(',', $host["host_stalking_options"]);
     foreach ($tmp as $key => $value) {
         $host["host_stalOpts"][trim($value)] = 1;
     }
     $DBRESULT->closeCursor();
 
-    /*
-     * Set Host Category Parents
-     */
+    // Set Host Category Parents
     $DBRESULT = $pearDB->query('SELECT DISTINCT hostcategories_hc_id 
                     FROM hostcategories_relation hcr, hostcategories hc
                     WHERE hcr.hostcategories_hc_id = hc.hc_id
                     AND hc.level IS NULL
-                    AND hcr.host_host_id = \'' . $host_id . '\'');
-    for ($i = 0; $hc = $DBRESULT->fetchRow(); $i++) {
+                    AND hcr.host_host_id = \'' . $hostId . '\'');
+    for ($i = 0; $hc = $DBRESULT->fetch(); $i++) {
         if (!$centreon->user->admin && false === strpos($hcString, "'" . $hc['hostcategories_hc_id'] . "'")) {
             $initialValues['host_hcs'][] = $hc['hostcategories_hc_id'];
             $host["host_hcs"][$i] = $hc['hostcategories_hc_id'];
@@ -181,43 +171,38 @@ if (($o == "c" || $o == "w") && $host_id) {
     }
     $DBRESULT->closeCursor();
 
-    /*
-     * Set Host and Nagios Server Relation
-     */
+    // Set Host and Nagios Server Relation
     $DBRESULT = $pearDB->query("SELECT `nagios_server_id` 
                                 FROM `ns_host_relation` 
-                                WHERE `host_host_id` = '" . $host_id . "'");
-    for (($o != "mc") ? $i = 0 : $i = 1; $ns = $DBRESULT->fetchRow(); $i++) {
+                                WHERE `host_host_id` = '" . $hostId . "'");
+    for (($o != "mc") ? $i = 0 : $i = 1; $ns = $DBRESULT->fetch(); $i++) {
         $host["nagios_server_id"][$i] = $ns["nagios_server_id"];
     }
     $DBRESULT->closeCursor();
     unset($ns);
 
-    /*
-     * Set criticality
-     */
+    // Set critically
     $res = $pearDB->query("SELECT hc.hc_id 
                             FROM hostcategories hc, hostcategories_relation hcr
-                            WHERE hcr.host_host_id = " . $pearDB->escape($host_id) . "
+                            WHERE hcr.host_host_id = " . $pearDB->escape($hostId) . "
                             AND hcr.hostcategories_hc_id = hc.hc_id
                             AND hc.level IS NOT NULL
                             ORDER BY hc.level ASC
                             LIMIT 1");
     if ($res->rowCount()) {
-        $cr = $res->fetchRow();
+        $cr = $res->fetch();
         $host['criticality_id'] = $cr['hc_id'];
     }
 
-    $aTemplates = $hostObj->getTemplateChain($host_id, array(), -1, true, "host_name,host_id,command_command_id");
+    $aTemplates = $hostObj->getTemplateChain($hostId, array(), -1, true, "host_name,host_id,command_command_id");
     if (!isset($cmdId)) {
         $cmdId = "";
     }
 
-    $aMacros = $hostObj->getMacros($host_id, false, $aTemplates, $cmdId, $_POST);
+    $aMacros = $hostObj->getMacros($hostId, false, $aTemplates, $cmdId, $_POST);
 }
-/*
- * Preset values of macros
- */
+
+// Preset values of macros
 $cdata = CentreonData::getInstance();
 
 $cdata->addJsData('clone-values-macro', htmlspecialchars(
@@ -226,19 +211,16 @@ $cdata->addJsData('clone-values-macro', htmlspecialchars(
 ));
 
 $cdata->addJsData('clone-count-macro', count($aMacros));
-/*
- * Preset values of host templates
- */
-$tplArray = $hostObj->getTemplates(isset($host_id) ? $host_id : null);
+
+// Preset values of host templates
+$tplArray = $hostObj->getTemplates(isset($hostId) ? $hostId : null);
 $cdata->addJsData('clone-values-template', htmlspecialchars(
     json_encode($tplArray),
     ENT_QUOTES
 ));
 $cdata->addJsData('clone-count-template', count($tplArray));
 
-/*
- * Nagios Server comes from DB -> Store in $nsServer Array
- */
+// Nagios Server comes from DB -> Store in $nsServer Array
 $nsServers = array();
 if ($o == "mc") {
     $nsServers[null] = null;
@@ -247,40 +229,32 @@ $DBRESULT = $pearDB->query("SELECT id, name
                                 FROM nagios_server " .
     ($aclPollerString != "''" ? $acl->queryBuilder('WHERE', 'id', $aclPollerString) : "") .
     " ORDER BY name");
-while ($nsServer = $DBRESULT->fetchRow()) {
+while ($nsServer = $DBRESULT->fetch()) {
     $nsServers[$nsServer["id"]] = $nsServer["name"];
 }
 $DBRESULT->closeCursor();
 
-/*
- * IMG comes from DB -> Store in $extImg Array
- */
+// IMG comes from DB -> Store in $extImg Array
 $extImg = array();
 $extImg = return_image_list(1);
 $extImgStatusmap = array();
 $extImgStatusmap = return_image_list(2);
 
-/*
- *  Host multiple templates relations stored in DB
- */
+// Host multiple templates relations stored in DB
 $mTp = array();
 $k = 0;
 $DBRESULT = $pearDB->query("SELECT host_tpl_id 
                             FROM host_template_relation 
-                            WHERE host_host_id = '" . $host_id . "' 
+                            WHERE host_host_id = '" . $hostId . "' 
                             ORDER BY `order`");
-while ($multiTp = $DBRESULT->fetchRow()) {
+while ($multiTp = $DBRESULT->fetch()) {
     $mTp[$k] = $multiTp["host_tpl_id"];
     $k++;
 }
 $DBRESULT->closeCursor();
 
-#
-# End of "database-retrieved" information
-##########################################################
-##########################################################
-# Var information to format the element
-#
+
+// Var information to format the element
 $attrsText = array("size" => "30");
 $attrsText2 = array("size" => "6");
 $attrsAdvSelect = array("style" => "width: 270px; height: 100px;");
@@ -405,7 +379,7 @@ $form->addElement('select', 'host_snmp_version', _("Version"), array(null => nul
  * Include GMT Class
  */
 $timezDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_timezone'
-    . '&action=defaultValues&target=host&field=host_location&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_location&id=' . $hostId;
 $timezAvRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_timezone&action=list';
 $attrTimezones = array(
     'datasourceOrigin' => 'ajax',
@@ -421,7 +395,7 @@ $form->addElement('select', 'nagios_server_id', _("Monitored from"), $nsServers)
  * Get deault poller id
  */
 $DBRESULT = $pearDB->query("SELECT id FROM nagios_server WHERE is_default = '1'");
-$defaultServer = $DBRESULT->fetchRow();
+$defaultServer = $DBRESULT->fetch();
 $DBRESULT->closeCursor();
 if (isset($defaultServer) && $defaultServer && $o != "mc") {
     $form->setDefaults(array('nagios_server_id' => $defaultServer["id"]));
@@ -514,7 +488,7 @@ $form->addElement('static', 'dupSvTplAssocText', _("Create Services linked to th
 $form->addElement('header', 'check', _("Host Check Properties"));
 
 $comDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_command'
-    . '&action=defaultValues&target=host&field=command_command_id&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=command_command_id&id=' . $hostId;
 $comAvRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_command&action=list&t=2';
 $attrCommand1 = array_merge(
     $attrCommands,
@@ -544,7 +518,7 @@ if ($o != "mc") {
 }
 
 $comDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_command'
-    . '&action=defaultValues&target=host&field=command_command_id2&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=command_command_id2&id=' . $hostId;
 $comAvRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_command&action=list';
 $attrCommand2 = array_merge(
     $attrCommands,
@@ -577,7 +551,7 @@ if ($o != "mc") {
 }
 
 $timeDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_timeperiod'
-    . '&action=defaultValues&target=host&field=timeperiod_tp_id&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=timeperiod_tp_id&id=' . $hostId;
 $attrTimeperiod1 = array_merge(
     $attrTimeperiods,
     array('defaultDatasetRoute' => $timeDeRoute)
@@ -676,7 +650,7 @@ if ($o == "mc") {
  *  Contacts
  */
 $contactDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_contact'
-    . '&action=defaultValues&target=host&field=host_cs&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_cs&id=' . $hostId;
 $attrContact1 = array_merge(
     $attrContacts,
     array('defaultDatasetRoute' => $contactDeRoute)
@@ -687,7 +661,7 @@ $form->addElement('select2', 'host_cs', _("Linked Contacts"), array(), $attrCont
  *  Contact groups
  */
 $contactGrDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_contactgroup'
-    . '&action=defaultValues&target=host&field=host_cgs&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_cgs&id=' . $hostId;
 $attrContactgroup1 = array_merge(
     $attrContactgroups,
     array('defaultDatasetRoute' => $contactGrDeRoute)
@@ -742,7 +716,7 @@ if ($o == "mc") {
     $form->setDefaults(array('mc_mod_notifopt_timeperiod' => '0'));
 }
 $timeDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_timeperiod'
-    . '&action=defaultValues&target=host&field=timeperiod_tp_id2&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=timeperiod_tp_id2&id=' . $hostId;
 $attrTimeperiod2 = array_merge(
     $attrTimeperiods,
     array('defaultDatasetRoute' => $timeDeRoute)
@@ -844,7 +818,7 @@ if ($o == "mc") {
 }
 
 $hostDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_host'
-    . '&action=defaultValues&target=host&field=host_parents&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_parents&id=' . $hostId;
 /* Host Parents */
 $attrHost1 = array_merge(
     $attrHosts,
@@ -861,7 +835,7 @@ if ($o == "mc") {
 }
 
 $hostDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_host'
-    . '&action=defaultValues&target=host&field=host_childs&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_childs&id=' . $hostId;
 $attrHost2 = array_merge(
     $attrHosts,
     array('defaultDatasetRoute' => $hostDeRoute)
@@ -877,7 +851,7 @@ if ($o == "mc") {
 }
 
 $hostgDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_hostgroup'
-    . '&action=defaultValues&target=host&field=host_hgs&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_hgs&id=' . $hostId;
 $attrHostgroup1 = array_merge(
     $attrHostgroups,
     array('defaultDatasetRoute' => $hostgDeRoute)
@@ -893,7 +867,7 @@ if ($o == "mc") {
 }
 
 $hostCatDeRoute = './include/common/webServices/rest/internal.php?object=centreon_configuration_hostcategory'
-    . '&action=defaultValues&target=host&field=host_hcs&id=' . $host_id;
+    . '&action=defaultValues&target=host&field=host_hcs&id=' . $hostId;
 $attrHostcategory1 = array_merge(
     $attrHostcategories,
     array('defaultDatasetRoute' => $hostCatDeRoute)
@@ -1001,7 +975,7 @@ $form->addElement('text', 'geo_coords', _("Geo coordinates"), $attrsText2);
 
 if (!$centreon->user->admin && $o == "a") {
     $aclDeRoute = './include/common/webServices/rest/internal.php?object=centreon_administration_aclgroup'
-        . '&action=defaultValues&target=host&field=acl_groups&id=' . $host_id;
+        . '&action=defaultValues&target=host&field=acl_groups&id=' . $hostId;
     $aclAvRoute = './include/common/webServices/rest/internal.php?object=centreon_administration_aclgroup&action=list';
     $attrAclgroups = array(
         'datasourceOrigin' => 'ajax',
@@ -1140,7 +1114,7 @@ if ($o == "w") {
      */
     if (!$min && $centreon->user->access->page($p) != 2) {
         $form->addElement("button", "change", _("Modify"), array(
-            "onClick" => "javascript:window.location.href='?p=" . $p . "&o=c&host_id=" . $host_id . "'",
+            "onClick" => "javascript:window.location.href='?p=" . $p . "&o=c&host_id=" . $hostId . "'",
             "class" => "btc bt_default"
         ));
     }
@@ -1246,7 +1220,7 @@ if ($valid) {
     $tpl->assign("History_Options", _("History Options"));
     $tpl->assign("Event_Handler", _("Event Handler"));
     $tpl->assign("topdoc", _("Documentation"));
-    $tpl->assign("hostID", $host_id);
+    $tpl->assign("hostID", $hostId);
     $tpl->assign("add_mtp_label", _("Add a template"));
     $tpl->assign('custom_macro_label', _('Custom macros'));
     $tpl->assign('template_inheritance', _('Template inheritance'));

@@ -1,7 +1,7 @@
 <?php
 /*
- * Copyright 2005-2015 Centreon
- * Centreon is developped by : Julien Mathis and Romain Le Merlus under
+ * Copyright 2005-2019 Centreon
+ * Centreon is developed by : Julien Mathis and Romain Le Merlus under
  * GPL Licence 2.0.
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -37,25 +37,22 @@ if (!isset($centreon)) {
     exit();
 }
 
-include_once('./class/centreonUtils.class.php');
-require_once('./include/common/autoNumLimit.php');
-require_once(_CENTREON_PATH_ . '/www/class/centreonHost.class.php');
+include_once './class/centreonUtils.class.php';
+require_once './include/common/autoNumLimit.php';
+require_once _CENTREON_PATH_ . '/www/class/centreonHost.class.php';
 
-/*
- * Init Host Method
- */
+// Init Host Method
 $host_method = new CentreonHost($pearDB);
 
-/*
- * Object init
- */
+// Object init
 $mediaObj = new CentreonMedia($pearDB);
 
-/*
- * Get Extended informations
- */
+// Get Extended informations
 $ehiCache = array();
-$DBRESULT = $pearDB->query('SELECT ehi_icon_image, host_host_id FROM extended_host_information');
+$DBRESULT = $pearDB->query(
+    'SELECT ehi_icon_image, host_host_id ' .
+    'FROM extended_host_information'
+);
 
 while ($ehi = $DBRESULT->fetch()) {
     $ehiCache[$ehi['host_host_id']] = $ehi['ehi_icon_image'];
@@ -118,16 +115,12 @@ $poller = (int)$poller;
 $template = (int)$template;
 $status = (int)(($status != '') ? $status : -1);
 
-/*
- * set object history
- */
+// set object history
 $centreon->poller = $poller;
 $centreon->hostgroup = $hostgroup;
 $centreon->template = $template;
 
-/*
- * Status Filter
- */
+// Status Filter
 $statusFilter = "<option value=''" .
     (($status == -1) ? " selected" : "") . "> </option>";
 
@@ -144,44 +137,39 @@ if ($status == 1) {
     $sqlFilterCase = " AND host_activate = '0' ";
 }
 
-/*
- * Search active
- */
+// Search active
 $searchFilterQuery = '';
-if (isset($search) &&
-    !empty($search)
+if (isset($search)
+    && !empty($search)
 ) {
     $search = str_replace('_', "\_", $search);
     $mainQueryParameters[':search_string'] = "%{$search}%";
-    $searchFilterQuery = '(h.host_name LIKE :search_string
-                        OR host_alias LIKE :search_string
-                        OR host_address LIKE :search_string) AND ';
+    $searchFilterQuery = '(h.host_name LIKE :search_string ' .
+                        'OR host_alias LIKE :search_string ' .
+                        'OR host_address LIKE :search_string) AND ';
 }
+
+$templateFROM = '';
+$templateWHERE = '';
 
 if ($template) {
     $templateFROM = ', host_template_relation htr ';
     $templateWHERE = " htr.host_host_id = h.host_id "
         . "AND htr.host_tpl_id = '{$template}' AND ";
-} else {
-    $templateFROM = '';
-    $templateWHERE = '';
 }
-/*
- * Smarty template Init
- */
+
+// Smarty template Init
 $tpl = new Smarty();
 $tpl = initSmartyTpl($path, $tpl);
 
-/* Access level */
+// Access level
 $lvl_access = ($centreon->user->access->page($p) == 1)
     ? 'w'
     : 'r';
 
 $tpl->assign('mode_access', $lvl_access);
 
-/*
- * start header menu
- */
+// start header menu
 $tpl->assign("headerMenu_name", _("Name"));
 $tpl->assign("headerMenu_desc", _("Alias"));
 $tpl->assign("headerMenu_address", _("IP Address / DNS"));
@@ -190,13 +178,16 @@ $tpl->assign("headerMenu_parent", _("Templates"));
 $tpl->assign("headerMenu_status", _("Status"));
 $tpl->assign("headerMenu_options", _("Options"));
 
-/*
- * Host list
- */
+// Host list
 $nagios_server = array();
-$DBRESULT = $pearDB->query('SELECT ns.name, ns.id FROM nagios_server ns ' .
-    ($aclPollerString != "''" ? $acl->queryBuilder('WHERE', 'ns.id', $aclPollerString) : '') .
-    ' ORDER BY ns.name');
+$DBRESULT = $pearDB->query(
+    'SELECT ns.name, ns.id FROM nagios_server ns ' .
+    ($aclPollerString != "''"
+        ? $acl->queryBuilder('WHERE', 'ns.id', $aclPollerString)
+        : ''
+    ) .
+    ' ORDER BY ns.name'
+);
 
 while ($relation = $DBRESULT->fetch()) {
     $nagios_server[$relation['id']] = $relation['name'];
@@ -207,41 +198,35 @@ unset($relation);
 $tab_relation = array();
 $tab_relation_id = array();
 $DBRESULT = $pearDB->query(
-    'SELECT nhr.host_host_id, nhr.nagios_server_id FROM ns_host_relation nhr'
+    'SELECT nhr.host_host_id, nhr.nagios_server_id ' .
+    'FROM ns_host_relation nhr'
 );
-while ($relation = $DBRESULT->fetchRow()) {
-    $tab_relation[$relation['host_host_id']] =
-        $nagios_server[$relation['nagios_server_id']];
-    
+
+while ($relation = $DBRESULT->fetch()) {
+    $tab_relation[$relation['host_host_id']]
+        = $nagios_server[$relation['nagios_server_id']];
+
     $tab_relation_id[$relation['host_host_id']] = $relation['nagios_server_id'];
 }
 $DBRESULT->closeCursor();
 
-/*
- * Init Formulary
- */
+// Init Formulary
 
 $form = new HTML_QuickFormCustom('select_form', 'POST', "?p={$p}");
 
-/*
- * Different style between each lines
- */
-
+// Different style between each lines
 $style = 'one';
 
 /*
- * Fill a tab with a mutlidimensionnal Array we put in $tpl
+ Fill a tab with a multidimensional Array we put in $tpl
  */
 
-/*
- * Select hosts
- */
+//Select hosts
 $aclFrom = '';
 $aclCond = '';
 if (!$centreon->user->admin) {
     $aclFrom = ", {$aclDbName}.centreon_acl acl";
-    $aclCond =
-        ' AND h.host_id = acl.host_id AND acl.service_id IS NULL '
+    $aclCond = ' AND h.host_id = acl.host_id AND acl.service_id IS NULL '
         . 'AND acl.group_id IN (' . $acl->getAccessGroupsString() . ') ';
 }
 
@@ -296,18 +281,21 @@ if ($hostgroup) {
 }
 
 $rows = $pearDB->query("SELECT FOUND_ROWS()")->fetchColumn();
-include('./include/common/checkPagination.php');
+include './include/common/checkPagination.php';
 
 $search = tidySearchKey($search, $advanced_search);
 
 $elemArr = array();
 $search = str_replace('\_', "_", $search);
-for ($i = 0; $host = $DBRESULT->fetchRow(); $i++) {
-    if (!isset($poller) ||
-        $poller == 0 ||
-        ($poller != 0 && $poller == $tab_relation_id[$host["host_id"]])
+for ($i = 0; $host = $DBRESULT->fetch(); $i++) {
+    if (!isset($poller)
+        || $poller == 0
+        || ($poller != 0 && $poller == $tab_relation_id[$host["host_id"]])
     ) {
-        $selectedElements = $form->addElement('checkbox', "select[" . $host['host_id'] . "]");
+        $selectedElements = $form->addElement(
+            'checkbox',
+            "select[" . $host['host_id'] . "]"
+        );
 
         if ($host["host_activate"]) {
             $moptions = "<a href='main.php?p=$p&host_id={$host['host_id']}"
@@ -331,15 +319,11 @@ for ($i = 0; $host = $DBRESULT->fetchRow(); $i++) {
             $host["host_name"] = getMyHostField($host['host_id'], "host_name");
         }
 
-        /*
-         * TPL List
-         */
+        // TPL List
         $tplArr = array();
         $tplStr = "";
 
-        /*
-         * Create Template topology
-         */
+        // Create Template topology
         $tplArr = getMyHostMultipleTemplateModels($host['host_id']);
         if (count($tplArr)) {
             $firstTpl = 1;
@@ -353,12 +337,10 @@ for ($i = 0; $host = $DBRESULT->fetchRow(); $i++) {
             }
         }
 
-        /*
-         * Check icon
-         */
+        // Check icon
         $host_icone = "./img/icons/host.png";
-        if (isset($ehiCache[$host["host_id"]]) &&
-            $ehiCache[$host["host_id"]]
+        if (isset($ehiCache[$host["host_id"]])
+            && $ehiCache[$host["host_id"]]
         ) {
             $host_icone = "./img/media/" . $mediaObj->getFilename($ehiCache[$host["host_id"]]);
         } else {
@@ -375,9 +357,7 @@ for ($i = 0; $host = $DBRESULT->fetchRow(); $i++) {
             }
         }
 
-        /*
-         * Create Array Data for template list
-         */
+        // Create Array Data for template list
         $elemArr[$i] = array(
             "MenuClass" => "list_" . $style,
             "RowMenu_select" => $selectedElements->toHtml(),
@@ -403,9 +383,7 @@ for ($i = 0; $host = $DBRESULT->fetchRow(); $i++) {
 }
 $tpl->assign("elemArr", $elemArr);
 
-/*
- * Different messages we put in the template
- */
+// Different messages we put in the template
 $tpl->assign(
     'msg',
     array(
@@ -415,15 +393,13 @@ $tpl->assign(
     )
 );
 
-/*
- * Toolbar select
- */
+// Toolbar select
 ?>
     <script type="text/javascript">
         function setO(_i) {
             document.forms['form'].elements['o'].value = _i;
         }
-    </SCRIPT>
+    </script>
 <?php
 foreach (array('o1', 'o2') as $option) {
     $attrs1 = array(
@@ -475,9 +451,7 @@ $tpl->assign(
     )
 );
 
-/*
- * create Poller Select
- */
+// create Poller Select
 $options = "<option value='0'>" . _("All Pollers") . "</option>";
 foreach ($nagios_server as $key => $name) {
     $options .= "<option value='$key' "
