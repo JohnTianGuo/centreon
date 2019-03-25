@@ -37,7 +37,7 @@ if (!isset($centreon)) {
     exit();
 }
 
-include_once './class/centreonUtils.class.php';
+require_once './class/centreonUtils.class.php';
 require_once './include/common/autoNumLimit.php';
 require_once _CENTREON_PATH_ . '/www/class/centreonHost.class.php';
 
@@ -60,60 +60,53 @@ while ($ehi = $DBRESULT->fetch()) {
 
 $DBRESULT->closeCursor();
 $mainQueryParameters = [];
-$search = null;
-$poller = 0;
-$hostgroup = 0;
-$template = 0;
-$status = -1;
 
-if (isset($_POST['SearchB'])) {
-    $num = 0;
-    $centreon->historySearch[$url] = array();
-    $search = $_POST["searchH"];
-    $centreon->historySearch[$url]["searchH"] = $search;
-    $poller = $_POST["poller"];
-    $centreon->historySearch[$url]["poller"] = $poller;
-    $hostgroup = $_POST["hostgroup"];
-    $centreon->historySearch[$url]["hostgroup"] = $hostgroup;
-    $template = $_POST["template"];
-    $centreon->historySearch[$url]["template"] = $template;
-    $status = $_POST["status"];
-    $centreon->historySearch[$url]["status"] = $status;
-} elseif (isset($_GET['SearchB'])) {
-    $centreon->historySearch[$url] = array();
-    $search = $_GET['searchH'];
-    $centreon->historySearch[$url]['searchH'] = $search;
-    $poller = $_GET["poller"];
-    $centreon->historySearch[$url]["poller"] = $poller;
-    $hostgroup = $_GET["hostgroup"];
-    $centreon->historySearch[$url]["hostgroup"] = $hostgroup;
-    $template = $_GET["template"];
-    $centreon->historySearch[$url]["template"] = $template;
-    $status = $_GET["status"];
-    $centreon->historySearch[$url]["status"] = $status;
-} else {
-    if (isset($centreon->historySearch[$url]['searchH'])) {
-        $search = $centreon->historySearch[$url]['searchH'];
-    }
-    if (isset($centreon->historySearch[$url]["poller"])) {
-        $poller = $centreon->historySearch[$url]["poller"];
-    }
-    if (isset($centreon->historySearch[$url]["hostgroup"])) {
-        $hostgroup = $centreon->historySearch[$url]["hostgroup"];
-    }
-    if (isset($centreon->historySearch[$url]["template"])) {
-        $template = $centreon->historySearch[$url]["template"];
-    }
-    if (isset($centreon->historySearch[$url]["status"])) {
-        $status = $centreon->historySearch[$url]["status"];
-    }
-}
+//initializing filters values
+$search = filter_var(
+    $_POST["searchH"] ?? $_GET["searchH"] ?? null,
+    FILTER_SANITIZE_STRING
+);
+$poller = filter_var(
+    $_POST["poller"] ?? $_GET["poller"] ?? 0,
+    FILTER_VALIDATE_INT
+);
+$hostgroup = filter_var(
+    $_POST["hostgroup"] ?? $_GET["hostgroup"] ?? 0,
+    FILTER_VALIDATE_INT
+);
+$template = filter_var(
+    $_POST["template"] ?? $_GET["template"] ?? 0,
+    FILTER_VALIDATE_INT
+);
 
-// Security fix
-$hostgroup = (int)$hostgroup;
-$poller = (int)$poller;
-$template = (int)$template;
+// $status values :  1 = enabled,  0 = disabled,  -1 = both
+$status = ($_POST["status"] ?? $_GET["status"] ?? '');
+//quickform returns an empty string when no status' filter is selected
 $status = (int)(($status != '') ? $status : -1);
+
+$num = filter_var(
+    $_POST["num"] ?? $_GET["num"] ?? 0,
+    FILTER_VALIDATE_INT
+);
+
+if (isset($_REQUEST['searchH'])) {
+    //saving chosen filters values
+    $centreon->historySearch[$url] = array();
+    $centreon->historySearch[$url]["searchH"] = $search;
+    $centreon->historySearch[$url]["poller"] = $poller;
+    $centreon->historySearch[$url]["hostgroup"] = $hostgroup;
+    $centreon->historySearch[$url]["template"] = $template;
+    $centreon->historySearch[$url]["status"] = $status;
+    $centreon->historySearch[$url]["num"] = $num;
+} else {
+    //restoring saved values
+    $search = $centreon->historySearch[$url]['searchH'] ?? null;
+    $poller = (int)$centreon->historySearch[$url]["poller"] ?? 0;
+    $hostgroup = (int)$centreon->historySearch[$url]["hostgroup"] ?? 0;
+    $template = (int)$centreon->historySearch[$url]["template"] ?? 0;
+    $status = (int)$centreon->historySearch[$url]["status"] ?? -1;
+    $num = (int)$centreon->historySearch[$url]["num"] ?? 0;
+}
 
 // set object history
 $centreon->poller = $poller;
@@ -121,41 +114,20 @@ $centreon->hostgroup = $hostgroup;
 $centreon->template = $template;
 
 // Status Filter
-$statusFilter = "<option value=''" .
-    (($status == -1) ? " selected" : "") . "> </option>";
+$statusFilter = "<option value='-1'" .
+    (($status === -1) ? " selected" : "") . "> </option>";
 
 $statusFilter .= "<option value='1'" .
-    (($status == 1) ? " selected" : "") . ">" . _("Enabled") . "</option>";
+    (($status === 1) ? " selected" : "") . ">" . _("Enabled") . "</option>";
 
 $statusFilter .= "<option value='0'" .
-    (($status == 0) ? " selected" : "") . ">" . _("Disabled") . "</option>";
+    (($status === 0) ? " selected" : "") . ">" . _("Disabled") . "</option>";
 
 $sqlFilterCase = '';
-if ($status == 1) {
+if ($status === 1) {
     $sqlFilterCase = " AND host_activate = '1' ";
-} elseif ($status == 0) {
+} elseif ($status === 0) {
     $sqlFilterCase = " AND host_activate = '0' ";
-}
-
-// Search active
-$searchFilterQuery = '';
-if (isset($search)
-    && !empty($search)
-) {
-    $search = str_replace('_', "\_", $search);
-    $mainQueryParameters[':search_string'] = "%{$search}%";
-    $searchFilterQuery = '(h.host_name LIKE :search_string ' .
-                        'OR host_alias LIKE :search_string ' .
-                        'OR host_address LIKE :search_string) AND ';
-}
-
-$templateFROM = '';
-$templateWHERE = '';
-
-if ($template) {
-    $templateFROM = ', host_template_relation htr ';
-    $templateWHERE = " htr.host_host_id = h.host_id "
-        . "AND htr.host_tpl_id = '{$template}' AND ";
 }
 
 // Smarty template Init
@@ -221,67 +193,64 @@ $style = 'one';
  Fill a tab with a multidimensional Array we put in $tpl
  */
 
+// Search active
+$searchFilterQuery = '';
+if (isset($search)
+    && !empty($search)
+) {
+    $search = str_replace('_', "\_", $search);
+    $mainQueryParameters[':search_string'] = "%{$search}%";
+    $searchFilterQuery = '(h.host_name LIKE :search_string ' .
+        'OR host_alias LIKE :search_string ' .
+        'OR host_address LIKE :search_string) AND ';
+}
+
+$templateFrom = '';
+$templateCondition = '';
+if ($template) {
+    $templateFrom = ', host_template_relation htr ';
+    $templateCondition = " htr.host_host_id = h.host_id "
+        . "AND htr.host_tpl_id = '{$template}' AND ";
+}
+
 //Select hosts
 $aclFrom = '';
-$aclCond = '';
+$aclCondition = '';
 if (!$centreon->user->admin) {
     $aclFrom = ", {$aclDbName}.centreon_acl acl";
-    $aclCond = ' AND h.host_id = acl.host_id AND acl.service_id IS NULL '
-        . 'AND acl.group_id IN (' . $acl->getAccessGroupsString() . ') ';
+    $aclCondition = ' AND h.host_id = acl.host_id AND acl.service_id IS NULL ' .
+        'AND acl.group_id IN (' . $acl->getAccessGroupsString() . ') ';
 }
+
+$query = "SELECT SQL_CALC_FOUND_ROWS DISTINCT h.host_id, h.host_name, host_alias, " .
+    " host_address, host_activate, host_template_model_htm_id " .
+    "FROM host h " . $templateFrom . $aclFrom;
+
+$queryWhere = "";
 
 if ($hostgroup) {
-    if ($poller) {
-        $DBRESULT = $pearDB->query(
-            "SELECT SQL_CALC_FOUND_ROWS DISTINCT h.host_id, h.host_name, host_alias,
-            host_address, host_activate, host_template_model_htm_id
-            FROM host h, ns_host_relation, hostgroup_relation hr $templateFROM $aclFrom
-            WHERE $searchFilterQuery $templateWHERE host_register = '1'
-            AND h.host_id = ns_host_relation.host_host_id
-            AND ns_host_relation.nagios_server_id = '$poller'
-            AND h.host_id = hr.host_host_id
-            AND hr.hostgroup_hg_id = '$hostgroup' $sqlFilterCase $aclCond
-            ORDER BY h.host_name LIMIT " . $num * $limit . ", " . $limit,
-            $mainQueryParameters
-        );
-    } else {
-        $DBRESULT = $pearDB->query(
-            "SELECT SQL_CALC_FOUND_ROWS DISTINCT h.host_id, h.host_name, host_alias,
-            host_address, host_activate, host_template_model_htm_id
-            FROM host h, hostgroup_relation hr $templateFROM $aclFrom
-            WHERE $searchFilterQuery $templateWHERE host_register = '1'
-            AND h.host_id = hr.host_host_id
-            AND hr.hostgroup_hg_id = '$hostgroup' $sqlFilterCase $aclCond
-            ORDER BY h.host_name LIMIT " . $num * $limit . ", " . $limit,
-            $mainQueryParameters
-        );
-    }
-} else {
-    if ($poller) {
-        $DBRESULT = $pearDB->query(
-            "SELECT SQL_CALC_FOUND_ROWS DISTINCT h.host_id, h.host_name, host_alias,
-            host_address, host_activate, host_template_model_htm_id
-            FROM host h, ns_host_relation $templateFROM $aclFrom
-            WHERE $searchFilterQuery $templateWHERE host_register = '1'
-            AND h.host_id = ns_host_relation.host_host_id
-            AND ns_host_relation.nagios_server_id = '$poller' $sqlFilterCase $aclCond
-            ORDER BY h.host_name LIMIT " . $num * $limit . ", " . $limit,
-            $mainQueryParameters
-        );
-    } else {
-        $DBRESULT = $pearDB->query(
-            "SELECT SQL_CALC_FOUND_ROWS DISTINCT h.host_id, h.host_name, host_alias,
-            host_address, host_activate, host_template_model_htm_id
-            FROM host h $templateFROM $aclFrom
-            WHERE $searchFilterQuery $templateWHERE host_register = '1' $sqlFilterCase $aclCond
-            ORDER BY h.host_name LIMIT " . $num * $limit . ", " . $limit,
-            $mainQueryParameters
-        );
-    }
+    $query .=", hostgroup_relation hr";
+    $queryWhere .= " AND h.host_id = hr.host_host_id " .
+        "AND hr.hostgroup_hg_id = '$hostgroup' ";
+
+}
+if ($poller) {
+    $query .=", ns_host_relation";
+    $queryWhere .= " AND ns_host_relation.nagios_server_id = ' . $poller . ' " .
+        "AND h.host_id = ns_host_relation.host_host_id ";
 }
 
+$query .= " WHERE " . $searchFilterQuery . $templateCondition . " host_register = '1' " .
+    $queryWhere . $sqlFilterCase . $aclCondition .
+    " ORDER BY h.host_name LIMIT " . $num * $limit . ", " . $limit;
+
+$DBRESULT = $pearDB->query($query, $mainQueryParameters);
+
 $rows = $pearDB->query("SELECT FOUND_ROWS()")->fetchColumn();
-include './include/common/checkPagination.php';
+
+
+
+require_once './include/common/checkPagination.php';
 
 $search = tidySearchKey($search, $advanced_search);
 
