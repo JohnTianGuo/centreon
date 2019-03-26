@@ -45,6 +45,12 @@ global $num, $limit, $search, $url, $pearDB, $search_type_service, $search_type_
 $type = isset($_REQUEST["type"]) ? $_REQUEST["type"] : null;
 isset($_GET["o"]) ? $o = $_GET["o"] : $o = null;
 
+//getting current page from http requests or history
+$currentNum = filter_var(
+    $_GET['num'] ?? $_POST['num'] ?? $centreon->historySearch[$url]["num"] ?? 0,
+    FILTER_VALIDATE_INT
+);
+
 if (isset($_GET["num"])) {
     $num = $_GET["num"];
 } elseif (!isset($_GET["num"]) && isset($centreon->historyPage[$url]) && $centreon->historyPage[$url]) {
@@ -193,7 +199,9 @@ if ($rows != 0) {
         $tpl->assign("pageArr", $pageArr);
     }
 
-    $tpl->assign("num", $num);
+    //setting current page from http requests or history
+    $tpl->assign("num", $currentNum);
+
     $tpl->assign("first", _("First page"));
     $tpl->assign("previous", _("Previous page"));
     $tpl->assign("next", _("Next page"));
