@@ -53,20 +53,26 @@ $searchFilterQuery = null;
 $mainQueryParameters = [];
 $search = null;
 
-if (isset($_POST['searchHg'])) {
-    $num = 0;
-    $search = $_POST['searchHg'];
-    $centreon->historySearch[$url] = $search;
-} elseif (isset($_GET['searchHg'])) {
-    $search = $_GET['searchHg'];
-    $centreon->historySearch[$url] = $search;
-} elseif (isset($centreon->historySearch[$url])) {
-    $search = $centreon->historySearch[$url];
-}
 
-if ($search) {
-    $mainQueryParameters[':search_string'] = "%{$search}%";
-    $searchFilterQuery = " (hg_name LIKE :search_string OR hg_alias LIKE :search_string) AND ";
+$search = filter_var(
+    $_POST['searchHg'] ?? $_GET['search'] ?? null,
+    FILTER_SANITIZE_STRING
+);
+
+$num = filter_var(
+    $_POST['num'] ?? $_GET['num'] ?? 0,
+    FILTER_VALIDATE_INT
+);
+
+if (isset($_POST['searchHg']) || isset($_GET['search'])) {
+    //saving chosen filters values
+    $centreon->historySearch[$url] = array();
+    $centreon->historySearch[$url]['searchHg'] = $search;
+    $centreon->historySearch[$url]['num'] = $num;
+} else {
+    //restoring saved values
+    $search = $centreon->historySearch[$url]['searchHg'] ?? null;
+    $num = (int)$centreon->historySearch[$url]['num'] ?? 0;
 }
 
 /*
@@ -88,6 +94,11 @@ $tpl->assign("headerMenu_hostDeact", _("Disabled Hosts"));
 $tpl->assign("headerMenu_options", _("Options"));
 
 // Hostgroup list
+if ($search) {
+    $mainQueryParameters[':search_string'] = "%{$search}%";
+    $searchFilterQuery = " (hg_name LIKE :search_string OR hg_alias LIKE :search_string) AND ";
+}
+
 $rq = "SELECT SQL_CALC_FOUND_ROWS hg_id, hg_name, hg_alias, hg_activate, hg_icon_image " .
     "FROM hostgroup " .
     "WHERE {$searchFilterQuery} hg_id NOT IN (SELECT hg_child_id FROM hostgroup_hg_relation) " .
